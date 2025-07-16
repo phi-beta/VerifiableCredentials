@@ -20,6 +20,9 @@ export { Verifier } from './roles/verifier';
 // Validation engine
 export { ValidationEngine } from './validation';
 
+// Schema validation
+export { SchemaValidator, schemaValidator } from './schema';
+
 // Utility functions
 export * from './utils';
 

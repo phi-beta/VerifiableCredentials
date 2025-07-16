@@ -18,7 +18,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VERSION = exports.ValidationEngine = exports.Verifier = exports.Holder = exports.Issuer = void 0;
+exports.VERSION = exports.schemaValidator = exports.SchemaValidator = exports.ValidationEngine = exports.Verifier = exports.Holder = exports.Issuer = void 0;
 // Core types and interfaces
 __exportStar(require("./types"), exports);
 // JSON-LD Context management
@@ -35,6 +35,10 @@ Object.defineProperty(exports, "Verifier", { enumerable: true, get: function () 
 // Validation engine
 var validation_1 = require("./validation");
 Object.defineProperty(exports, "ValidationEngine", { enumerable: true, get: function () { return validation_1.ValidationEngine; } });
+// Schema validation
+var schema_1 = require("./schema");
+Object.defineProperty(exports, "SchemaValidator", { enumerable: true, get: function () { return schema_1.SchemaValidator; } });
+Object.defineProperty(exports, "schemaValidator", { enumerable: true, get: function () { return schema_1.schemaValidator; } });
 // Utility functions
 __exportStar(require("./utils"), exports);
 // Version information

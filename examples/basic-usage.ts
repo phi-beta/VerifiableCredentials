@@ -7,6 +7,8 @@ import {
   Holder,
   Verifier,
   ValidationEngine,
+  SchemaValidator,
+  schemaValidator,
   VerifiableCredential,
   VerifiablePresentation,
   generateURI,
@@ -165,6 +167,134 @@ async function main() {
   newHolder.importCredentials(exportedCredentials);
   console.log('✓ Credentials exported and imported successfully');
   console.log('   - New holder has', newHolder.listCredentials().length, 'credentials');
+
+  // 13. Demonstrate schema validation
+  console.log('13. Demonstrating schema validation...');
+  
+  // List available schemas
+  const availableSchemas = schemaValidator.getAvailableSchemas();
+  console.log('✓ Available schemas:', availableSchemas);
+  
+  // Validate degree credential against its schema
+  const degreeSchemaResult = schemaValidator.validateCredential(degreeCredential);
+  console.log('✓ Degree credential schema validation:');
+  console.log('   - Valid:', degreeSchemaResult.valid);
+  console.log('   - Errors:', degreeSchemaResult.errors.length);
+  console.log('   - Warnings:', degreeSchemaResult.warnings?.length || 0);
+  
+  if (degreeSchemaResult.errors.length > 0) {
+    console.log('   - Error details:', degreeSchemaResult.errors);
+  }
+  
+  // Validate certification credential against its schema
+  const certSchemaResult = schemaValidator.validateCredential(certificationCredential);
+  console.log('✓ Certification credential schema validation:');
+  console.log('   - Valid:', certSchemaResult.valid);
+  console.log('   - Errors:', certSchemaResult.errors.length);
+  console.log('   - Warnings:', certSchemaResult.warnings?.length || 0);
+  
+  // Validate presentation against its schema
+  const presentationSchemaResult = schemaValidator.validatePresentation(multiCredentialPresentation);
+  console.log('✓ Presentation schema validation:');
+  console.log('   - Valid:', presentationSchemaResult.valid);
+  console.log('   - Errors:', presentationSchemaResult.errors.length);
+  console.log('   - Warnings:', presentationSchemaResult.warnings?.length || 0);
+  
+  // 14. Demonstrate custom schema validation
+  console.log('14. Demonstrating custom schema validation...');
+  
+  // Create a custom schema validator instance
+  const customValidator = new SchemaValidator();
+  
+  // Add a custom schema for driver's license
+  const driverLicenseSchema = {
+    $id: 'DriverLicenseCredential',
+    $schema: 'http://json-schema.org/draft-07/schema#',
+    allOf: [
+      { $ref: 'VerifiableCredential' },
+      {
+        type: 'object',
+        properties: {
+          credentialSubject: {
+            type: 'object',
+            required: ['id', 'name', 'licenseNumber', 'licenseClass'],
+            properties: {
+              id: { type: 'string', format: 'uri' },
+              name: { type: 'string' },
+              licenseNumber: { type: 'string' },
+              licenseClass: { type: 'string' },
+              issuingState: { type: 'string' },
+              expirationDate: { type: 'string', format: 'date' }
+            }
+          }
+        }
+      }
+    ]
+  };
+  
+  customValidator.addSchema('DriverLicenseCredential', driverLicenseSchema);
+  console.log('✓ Custom driver license schema added');
+  
+  // Create a driver license credential
+  const dmv = new Issuer({
+    id: 'https://dmv.state.gov',
+    name: 'State Department of Motor Vehicles'
+  });
+  
+  const driverLicenseCredential = await dmv.issueCredential({
+    credentialSubject: {
+      id: 'https://student.example/profile',
+      name: 'Alice Smith',
+      licenseNumber: 'DL123456789',
+      licenseClass: 'C',
+      issuingState: 'California',
+      expirationDate: '2028-05-15'
+    },
+    type: ['VerifiableCredential', 'DriverLicenseCredential'],
+    validFrom: getCurrentDateTime(),
+    validUntil: '2028-05-15T23:59:59Z'
+  });
+  
+  // Validate the driver license credential
+  const driverLicenseResult = customValidator.validateCredential(driverLicenseCredential);
+  console.log('✓ Driver license credential schema validation:');
+  console.log('   - Valid:', driverLicenseResult.valid);
+  console.log('   - Errors:', driverLicenseResult.errors.length);
+  console.log('   - Warnings:', driverLicenseResult.warnings?.length || 0);
+  
+  // 15. Demonstrate schema validation with invalid data
+  console.log('15. Demonstrating schema validation with invalid data...');
+  
+  // Create an invalid credential (missing required fields)
+  const invalidCredential = {
+    '@context': ['https://www.w3.org/2018/credentials/v1'],
+    type: ['VerifiableCredential', 'UniversityDegreeCredential'],
+    // Missing issuer and credentialSubject
+    id: generateURI(),
+    validFrom: getCurrentDateTime()
+  } as VerifiableCredential;
+  
+  const invalidResult = schemaValidator.validateCredential(invalidCredential);
+  console.log('✓ Invalid credential schema validation:');
+  console.log('   - Valid:', invalidResult.valid);
+  console.log('   - Errors:', invalidResult.errors.length);
+  console.log('   - Error details:', invalidResult.errors);
+  
+  // 16. Demonstrate schema validation against specific schema
+  console.log('16. Demonstrating validation against specific schema...');
+  
+  // Validate degree credential against the base VerifiableCredential schema
+  const baseSchemaResult = schemaValidator.validateCredential(degreeCredential, 'VerifiableCredential');
+  console.log('✓ Degree credential against base VC schema:');
+  console.log('   - Valid:', baseSchemaResult.valid);
+  console.log('   - Errors:', baseSchemaResult.errors.length);
+  
+  // Try to validate against a non-existent schema
+  const nonExistentResult = schemaValidator.validateCredential(degreeCredential, 'NonExistentSchema');
+  console.log('✓ Validation against non-existent schema:');
+  console.log('   - Valid:', nonExistentResult.valid);
+  console.log('   - Errors:', nonExistentResult.errors.length);
+  console.log('   - Error details:', nonExistentResult.errors);
 
   console.log('\n🎉 Example completed successfully!');
 }

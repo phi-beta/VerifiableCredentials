@@ -9,6 +9,7 @@ export { Issuer } from './roles/issuer';
 export { Holder } from './roles/holder';
 export { Verifier } from './roles/verifier';
 export { ValidationEngine } from './validation';
+export { SchemaValidator, schemaValidator } from './schema';
 export * from './utils';
 export declare const VERSION = "1.0.0";
 //# sourceMappingURL=index.d.ts.map
