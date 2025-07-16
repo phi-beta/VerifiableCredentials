@@ -1,0 +1,45 @@
+{
+  "name": "w3c-verifiable-credentials",
+  "version": "1.0.0",
+  "description": "TypeScript implementation of W3C Verifiable Credentials Data Model v2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "clean": "rimraf dist",
+    "lint": "tsc --noEmit",
+    "start": "npm run build && node dist/index.js"
+  },
+  "keywords": [
+    "w3c",
+    "verifiable-credentials",
+    "typescript",
+    "json-ld",
+    "cryptography",
+    "decentralized-identity",
+    "digital-credentials"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/jsonld": "^1.5.15",
+    "@types/node": "^24.0.14",
+    "@types/uuid": "^10.0.0",
+    "jest": "^30.0.4",
+    "nodemon": "^3.1.10",
+    "rimraf": "^6.0.1",
+    "ts-jest": "^29.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "jsonld": "^8.3.3",
+    "uuid": "^11.1.0"
+  }
+}
