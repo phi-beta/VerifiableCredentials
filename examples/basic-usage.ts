@@ -26,12 +26,22 @@ async function main() {
     description: 'A prestigious educational institution'
   });
 
+  // Generate a key pair for the issuer
+  console.log('   - Generating cryptographic key pair...');
+  const securityManager = (university as any).securityManager;
+  await securityManager.generateKeyPair('Ed25519', 'placeholder-key');
+
   // 2. Create a Holder (e.g., a Student)
   console.log('2. Creating Holder (Student)...');
   const student = new Holder({
     id: 'https://student.example/profile',
     name: 'Alice Smith'
   });
+
+  // Generate a key pair for the holder
+  console.log('   - Generating cryptographic key pair...');
+  const holderSecurityManager = (student as any).securityManager;
+  await holderSecurityManager.generateKeyPair('Ed25519', 'placeholder-key');
 
   // 3. Create a Verifier (e.g., an Employer)
   console.log('3. Creating Verifier (Employer)...');
@@ -114,6 +124,11 @@ async function main() {
     id: 'https://techcert.org',
     name: 'Tech Certification Authority'
   });
+
+  // Generate a key pair for the certification issuer
+  console.log('   - Generating cryptographic key pair...');
+  const certSecurityManager = (certificationIssuer as any).securityManager;
+  await certSecurityManager.generateKeyPair('Ed25519', 'placeholder-key');
 
   const certificationCredential = await certificationIssuer.issueCredential({
     credentialSubject: {
@@ -240,6 +255,11 @@ async function main() {
     id: 'https://dmv.state.gov',
     name: 'State Department of Motor Vehicles'
   });
+
+  // Generate a key pair for the DMV issuer
+  console.log('   - Generating cryptographic key pair for DMV...');
+  const dmvSecurityManager = (dmv as any).securityManager;
+  await dmvSecurityManager.generateKeyPair('Ed25519', 'placeholder-key');
   
   const driverLicenseCredential = await dmv.issueCredential({
     credentialSubject: {

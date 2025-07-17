@@ -8,12 +8,16 @@ import { W3C_VC_CONTEXT_V2 } from '../../context';
 describe('Issuer', () => {
   let issuer: Issuer;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     issuer = new Issuer({
       id: 'https://university.edu',
       name: 'Example University',
       description: 'A test university'
     });
+
+    // Generate a key pair for testing using the security manager directly
+    const securityManager = (issuer as any).securityManager;
+    await securityManager.generateKeyPair('Ed25519', 'placeholder-key');
   });
 
   test('should create an issuer with correct properties', () => {

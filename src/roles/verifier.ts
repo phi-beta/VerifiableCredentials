@@ -292,8 +292,7 @@ export class Verifier {
     const proofs = Array.isArray(proof) ? proof : [proof];
 
     for (const singleProof of proofs) {
-      // For now, perform basic validation
-      // In a real implementation, this would verify the actual cryptographic proof
+      // Basic structure validation
       if (!singleProof.type) {
         errors.push('Proof missing type');
       }
@@ -310,6 +309,34 @@ export class Verifier {
       // Check proof purpose
       if (singleProof.proofPurpose && !this.requiredProofPurposes.has(singleProof.proofPurpose)) {
         warnings.push(`Proof purpose ${singleProof.proofPurpose} is not in required purposes`);
+      }
+
+      // Perform cryptographic verification
+      if (singleProof.verificationMethod) {
+        try {
+          const publicKey = await this.securityManager.resolveVerificationMethod(singleProof.verificationMethod);
+          if (publicKey) {
+            // Create a copy of the credential without the proof for verification
+            const credentialWithoutProof = { ...credential };
+            delete credentialWithoutProof.proof;
+
+            const verificationResult = await this.securityManager.verifyProof(
+              singleProof,
+              credentialWithoutProof,
+              publicKey
+            );
+
+            if (!verificationResult.valid) {
+              errors.push(...verificationResult.errors);
+              warnings.push(...(verificationResult.warnings || []));
+            }
+          } else {
+            warnings.push(`Could not resolve public key for verification method: ${singleProof.verificationMethod}`);
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          errors.push(`Cryptographic verification failed: ${errorMessage}`);
+        }
       }
     }
 
