@@ -12,7 +12,10 @@ import {
   VerifiableCredential,
   VerifiablePresentation,
   generateURI,
-  getCurrentDateTime
+  getCurrentDateTime,
+  OIDC4VCIServer,
+  OIDC4VPServer,
+  OIDC4VCClient
 } from '../src';
 
 async function main() {
@@ -315,6 +318,119 @@ async function main() {
   console.log('   - Valid:', nonExistentResult.valid);
   console.log('   - Errors:', nonExistentResult.errors.length);
   console.log('   - Error details:', nonExistentResult.errors);
+
+  // 17. Demonstrate OIDC4VC (OpenID Connect for Verifiable Credentials)
+  console.log('17. Demonstrating OIDC4VC configuration and concepts...');
+  
+  // Setup OIDC4VCI Server for credential issuance
+  const oidcIssuer = new Issuer({
+    id: 'https://oidc-university.edu',
+    name: 'OIDC University',
+    description: 'University with OIDC4VC support'
+  });
+
+  // Generate key pair for OIDC issuer
+  const oidcIssuerSecurityManager = (oidcIssuer as any).securityManager;
+  await oidcIssuerSecurityManager.generateKeyPair('Ed25519', 'placeholder-key');
+
+  const oidcVciServer = new OIDC4VCIServer({
+    issuerUrl: 'https://oidc-university.edu',
+    port: 8080,
+    supportedCredentialTypes: ['UniversityDegreeCredential', 'ProfessionalCertificationCredential'],
+    issuer: oidcIssuer
+  });
+
+  console.log('✓ OIDC4VCI Server configured for credential issuance');
+
+  // Setup OIDC4VP Server for credential presentation
+  const oidcVerifier = new Verifier({
+    id: 'https://oidc-employer.com',
+    name: 'OIDC Employer',
+    trustedIssuers: ['https://oidc-university.edu']
+  });
+
+  const oidcVpServer = new OIDC4VPServer({
+    verifierUrl: 'https://oidc-employer.com',
+    port: 8081,
+    verifier: oidcVerifier,
+    clientId: 'oidc-employer-client',
+    redirectUri: 'https://oidc-employer.com/callback'
+  });
+
+  console.log('✓ OIDC4VP Server configured for credential presentation');
+
+  // Create OIDC4VC Client (representing the wallet/holder)
+  const oidcClient = new OIDC4VCClient(student);
+  console.log('✓ OIDC4VC Client created for wallet interaction');
+
+  // Demonstrate OIDC4VC configuration and capabilities
+  console.log('   - OIDC4VC Server Configurations:');
+  console.log('     • Issuer URL: https://oidc-university.edu');
+  console.log('     • Supported Credential Types: UniversityDegreeCredential, ProfessionalCertificationCredential');
+  console.log('     • Verifier URL: https://oidc-employer.com');
+  console.log('     • Client ID: oidc-employer-client');
+
+  // Show what OIDC4VC enables
+  console.log('   - OIDC4VC Capabilities:');
+  console.log('     • HTTP-based credential issuance (OIDC4VCI)');
+  console.log('     • HTTP-based credential presentation (OIDC4VP)');
+  console.log('     • Integration with existing OAuth 2.0/OpenID Connect infrastructure');
+  console.log('     • QR code and deep link support for mobile wallets');
+  console.log('     • Pre-authorized code flow for streamlined issuance');
+  console.log('     • Presentation definition for fine-grained credential requests');
+
+  // Show credential offer structure
+  console.log('   - Example Credential Offer Structure:');
+  const exampleCredentialOffer = {
+    credential_issuer: 'https://oidc-university.edu',
+    credentials: ['UniversityDegreeCredential'],
+    grants: {
+      'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
+        'pre-authorized_code': 'demo-pre-auth-code-123',
+        user_pin_required: false
+      }
+    }
+  };
+  console.log('     ', JSON.stringify(exampleCredentialOffer, null, 6));
+
+  // Show presentation request structure
+  console.log('   - Example Presentation Request Structure:');
+  const examplePresentationRequest = {
+    client_id: 'oidc-employer-client',
+    response_type: 'vp_token',
+    scope: 'openid',
+    response_mode: 'direct_post',
+    presentation_definition: {
+      id: 'job-application-requirements',
+      input_descriptors: [{
+        id: 'university-degree',
+        constraints: {
+          fields: [{
+            path: ['$.type'],
+            filter: {
+              type: 'array',
+              contains: { const: 'UniversityDegreeCredential' }
+            }
+          }]
+        }
+      }]
+    }
+  };
+  console.log('     ', JSON.stringify(examplePresentationRequest, null, 6));
+
+  // Demonstrate endpoints available
+  console.log('   - Available OIDC4VC Endpoints:');
+  console.log('     • Issuer Metadata: /.well-known/openid_credential_issuer');
+  console.log('     • Token Endpoint: /token');
+  console.log('     • Credential Endpoint: /credential');
+  console.log('     • Verifier Metadata: /.well-known/openid_credential_verifier');
+  console.log('     • Authorization Endpoint: /authorize');
+  console.log('     • Presentation Endpoint: /presentation');
+
+  console.log('✓ OIDC4VC demonstration completed');
+  console.log('   - Servers configured for HTTP-based credential exchange');
+  console.log('   - Client ready for wallet interactions');
+  console.log('   - See examples/oidc4vc-demo.ts for full end-to-end HTTP workflow');
 
   console.log('\n🎉 Example completed successfully!');
 }

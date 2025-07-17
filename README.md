@@ -267,8 +267,8 @@ npm run dev
 
 See the `examples/` directory for complete usage examples:
 
-- `basic-usage.ts` - Basic credential issuance, storage, and verification
-- More examples coming soon...
+- `basic-usage.ts` - Comprehensive demonstration including credential issuance, storage, verification, schema validation, and OIDC4VC configuration
+- `oidc4vc-demo.ts` - Full end-to-end OIDC4VC workflow with HTTP servers and client interactions
 
 ## API Reference
 
@@ -311,3 +311,96 @@ MIT License - see LICENSE file for details.
 ## Support
 
 For questions, issues, or contributions, please use the GitHub issue tracker.
+
+## 🌐 OIDC4VC Support
+
+### OpenID Connect for Verifiable Credentials
+
+The implementation now includes support for **OIDC4VC** (OpenID Connect for Verifiable Credentials), enabling modern credential exchange via HTTP APIs:
+
+#### OIDC4VCI (Credential Issuance)
+```typescript
+import { OIDC4VCIServer, Issuer } from 'w3c-verifiable-credentials';
+
+const issuer = new Issuer({ id: 'https://university.edu', name: 'University' });
+
+const vciServer = new OIDC4VCIServer({
+  issuerUrl: 'http://localhost:3001',
+  port: 3001,
+  supportedCredentialTypes: ['UniversityDegreeCredential'],
+  issuer
+});
+
+await vciServer.start();
+```
+
+#### OIDC4VP (Presentation Verification)
+```typescript
+import { OIDC4VPServer, Verifier } from 'w3c-verifiable-credentials';
+
+const verifier = new Verifier({ 
+  id: 'https://employer.com', 
+  trustedIssuers: ['https://university.edu'] 
+});
+
+const vpServer = new OIDC4VPServer({
+  verifierUrl: 'http://localhost:3002',
+  port: 3002,
+  verifier,
+  clientId: 'employer-verifier',
+  redirectUri: 'http://localhost:3002/callback'
+});
+
+await vpServer.start();
+```
+
+#### OIDC4VC Client
+```typescript
+import { OIDC4VCClient, Holder } from 'w3c-verifiable-credentials';
+
+const holder = new Holder({ id: 'https://student.example', name: 'Alice' });
+const client = new OIDC4VCClient(holder);
+
+// Accept credential offer
+const credential = await client.acceptCredentialOffer(credentialOfferUri);
+
+// Submit presentation
+const result = await client.submitPresentation(authRequestUri, ['DegreeCredential']);
+```
+
+### OIDC4VC Features
+
+- ✅ **Credential Issuance Server (OIDC4VCI)**
+  - Well-known metadata endpoints
+  - OAuth 2.0 token endpoint
+  - Credential issuance endpoint
+  - Pre-authorized code flow
+  - Multiple credential type support
+
+- ✅ **Presentation Verification Server (OIDC4VP)**
+  - Authorization request creation
+  - Presentation definition support
+  - Direct post response mode
+  - Verification result tracking
+
+- ✅ **Client Implementation**
+  - Credential offer acceptance
+  - Presentation submission
+  - HTTP-based credential exchange
+
+### Live Demo
+
+Run the OIDC4VC demo to see the full workflow:
+
+```bash
+npm run build
+npx ts-node examples/oidc4vc-demo.ts
+```
+
+This demonstrates:
+1. Starting OIDC4VCI and OIDC4VP servers
+2. Creating credential offers
+3. Issuing credentials via HTTP API
+4. Creating presentation requests
+5. Submitting presentations for verification
+6. End-to-end OIDC4VC workflow

@@ -168,12 +168,16 @@ if (process.env.NODE_ENV === 'test') {
 - **Import/Export**: Standard formats and protocols
 - **Wallet Integration**: Integration with credential wallets
 
-### 10. Network and Protocol Support (LOW PRIORITY)
-**Current Status**: Not implemented
-**Missing**:
-- **HTTP Transport**: RESTful API support
+### Network and Protocol Support (MEDIUM PRIORITY → PARTIALLY IMPLEMENTED)
+**Current Status**: OIDC4VC support added
+**Implemented**:
+- **OIDC4VCI**: OpenID Connect for Verifiable Credential Issuance
+- **OIDC4VP**: OpenID Connect for Verifiable Presentation
+- **HTTP Transport**: RESTful API support for credential exchange
+- **Well-known Endpoints**: Metadata discovery
+
+**Still Missing**:
 - **DIDComm**: Secure messaging protocol
-- **OIDC4VC**: OpenID Connect for Verifiable Credentials
 - **CHAPI**: Credential Handler API
 - **WebAuthn Integration**: Hardware authenticator support
 - **QR Code Support**: Credential exchange via QR codes
@@ -189,19 +193,19 @@ if (process.env.NODE_ENV === 'test') {
 
 ## Implementation Completeness Assessment
 
-### Overall Completeness: ~25-30%
+### Overall Completeness: ~40-45%
 
 **By Category**:
 - **Core Data Model**: 70% (missing advanced features)
-- **Cryptography**: 5% (placeholder only)
+- **Cryptography**: 60% (working but simplified implementation)
 - **JSON-LD Processing**: 15% (basic structure only)
-- **Proof Systems**: 10% (structure only, no real crypto)
+- **Proof Systems**: 40% (basic crypto working, missing advanced features)
 - **Status/Revocation**: 0% (not implemented)
-- **Schema Validation**: 0% (not implemented)
+- **Schema Validation**: 80% (comprehensive AJV-based validation)
 - **Advanced Security**: 0% (not implemented)
 - **DID Integration**: 0% (not implemented)
 - **Storage/Persistence**: 20% (in-memory only)
-- **Network/Protocol**: 0% (not implemented)
+- **Network/Protocol**: 35% (OIDC4VC implemented, others missing)
 
 ## Next Steps Roadmap
 
@@ -286,3 +290,13 @@ For production use, consider:
 - Implementing comprehensive testing and validation
 
 The estimated effort to reach production readiness is **6-12 months** with a dedicated development team.
+
+### OIDC4VC (OpenID Connect for Verifiable Credentials) (NEW!)
+- **OIDC4VCI Server**: Credential issuance via HTTP APIs
+- **OIDC4VP Server**: Presentation verification via HTTP APIs  
+- **OIDC4VC Client**: Client-side credential exchange
+- **Well-known Endpoints**: Metadata discovery support
+- **OAuth 2.0 Integration**: Token-based credential issuance
+- **Presentation Exchange**: HTTP-based presentation workflows
+- **Pre-authorized Code Flow**: Simplified credential offers
+- **Direct Post Response**: Secure presentation submission

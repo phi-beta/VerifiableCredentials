@@ -79,10 +79,10 @@ class Ed25519Signature2020Suite extends CryptographicSuite {
     }
     async sign(data, privateKey) {
         try {
-            await loadCryptoModules();
-            // Convert PEM private key to raw bytes
-            const privateKeyBytes = this.pemToBytes(privateKey);
-            return await ed25519.sign(data, privateKeyBytes);
+            // Use native crypto for Ed25519 signing (no digest algorithm needed for Ed25519)
+            const keyObject = crypto.createPrivateKey(privateKey);
+            const signature = crypto.sign(null, data, keyObject);
+            return new Uint8Array(signature);
         }
         catch (error) {
             throw new Error(`Ed25519 signing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -90,10 +90,9 @@ class Ed25519Signature2020Suite extends CryptographicSuite {
     }
     async verify(data, signature, publicKey) {
         try {
-            await loadCryptoModules();
-            // Convert PEM public key to raw bytes
-            const publicKeyBytes = this.pemToBytes(publicKey);
-            return await ed25519.verify(signature, data, publicKeyBytes);
+            // Use native crypto for Ed25519 verification (no digest algorithm needed for Ed25519)
+            const keyObject = crypto.createPublicKey(publicKey);
+            return crypto.verify(null, data, keyObject, signature);
         }
         catch (error) {
             return false;
@@ -168,11 +167,7 @@ class JsonWebSignature2020Suite extends CryptographicSuite {
     }
     async createProof(data, options, privateKey) {
         try {
-            await loadCryptoModules();
-            // Convert PEM to JWK format for JOSE
-            const keyObject = crypto.createPrivateKey(privateKey);
-            const jwk = await jose.exportJWK(keyObject);
-            // Create JWT payload
+            // Simple implementation without full JWT for demonstration
             const payload = {
                 vc: data,
                 iss: options.verificationMethod,
@@ -180,12 +175,11 @@ class JsonWebSignature2020Suite extends CryptographicSuite {
                 iat: Math.floor(Date.now() / 1000),
                 ...(options.challenge && { nonce: options.challenge })
             };
-            // Sign the JWT
-            const jwt = await new jose.SignJWT(payload)
-                .setProtectedHeader({ alg: 'EdDSA', typ: 'JWT' })
-                .setIssuedAt()
-                .setExpirationTime('2h')
-                .sign(keyObject);
+            // Create a simple signature using native crypto
+            const keyObject = crypto.createPrivateKey(privateKey);
+            const payloadString = JSON.stringify(payload);
+            const signature = crypto.sign('sha256', Buffer.from(payloadString), keyObject);
+            const jws = `${Buffer.from(JSON.stringify({ alg: 'EdDSA', typ: 'JWT' })).toString('base64url')}.${Buffer.from(payloadString).toString('base64url')}.${signature.toString('base64url')}`;
             return {
                 type: this.type,
                 created: options.created || new Date().toISOString(),
@@ -193,7 +187,7 @@ class JsonWebSignature2020Suite extends CryptographicSuite {
                 proofPurpose: options.proofPurpose,
                 ...(options.challenge && { challenge: options.challenge }),
                 ...(options.domain && { domain: options.domain }),
-                jws: jwt
+                jws: jws
             };
         }
         catch (error) {
@@ -202,11 +196,19 @@ class JsonWebSignature2020Suite extends CryptographicSuite {
     }
     async verifyProof(proof, data, publicKey) {
         try {
-            await loadCryptoModules();
-            const keyObject = crypto.createPublicKey(publicKey);
-            const { payload } = await jose.jwtVerify(proof.jws, keyObject);
+            // Simple JWT verification using native crypto
+            const jwtParts = proof.jws.split('.');
+            if (jwtParts.length !== 3)
+                return false;
+            const header = JSON.parse(Buffer.from(jwtParts[0], 'base64url').toString());
+            const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64url').toString());
+            const signature = Buffer.from(jwtParts[2], 'base64url');
             // Verify the payload contains the expected data
-            return JSON.stringify(payload.vc) === JSON.stringify(data);
+            const payloadMatches = JSON.stringify(payload.vc) === JSON.stringify(data);
+            // Verify the signature
+            const keyObject = crypto.createPublicKey(publicKey);
+            const signatureValid = crypto.verify('sha256', Buffer.from(jwtParts[1]), keyObject, signature);
+            return payloadMatches && signatureValid;
         }
         catch (error) {
             return false;
@@ -227,7 +229,6 @@ class SecurityManager {
      */
     async generateKeyPair(keyType = 'Ed25519', keyId) {
         try {
-            await loadCryptoModules();
             let publicKey;
             let privateKey;
             switch (keyType) {
@@ -240,12 +241,15 @@ class SecurityManager {
                     privateKey = ed25519Keys.privateKey;
                     break;
                 case 'secp256k1':
-                    // Generate secp256k1 key pair using @noble/secp256k1
-                    const privateKeyBytes = secp256k1.utils.randomPrivateKey();
-                    const publicKeyBytes = secp256k1.getPublicKey(privateKeyBytes);
-                    // Convert to PEM format (simplified - in production, use proper ASN.1 encoding)
-                    privateKey = this.bytesToPem(privateKeyBytes, 'PRIVATE KEY');
-                    publicKey = this.bytesToPem(publicKeyBytes, 'PUBLIC KEY');
+                case 'ES256K':
+                    // Use secp256k1 curve with native crypto
+                    const secp256k1Keys = crypto.generateKeyPairSync('ec', {
+                        namedCurve: 'secp256k1',
+                        publicKeyEncoding: { type: 'spki', format: 'pem' },
+                        privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+                    });
+                    publicKey = secp256k1Keys.publicKey;
+                    privateKey = secp256k1Keys.privateKey;
                     break;
                 case 'RSA':
                     const rsaKeys = crypto.generateKeyPairSync('rsa', {
@@ -255,16 +259,6 @@ class SecurityManager {
                     });
                     publicKey = rsaKeys.publicKey;
                     privateKey = rsaKeys.privateKey;
-                    break;
-                case 'ES256K':
-                    // ES256K uses secp256k1 curve
-                    const es256kKeys = crypto.generateKeyPairSync('ec', {
-                        namedCurve: 'secp256k1',
-                        publicKeyEncoding: { type: 'spki', format: 'pem' },
-                        privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-                    });
-                    publicKey = es256kKeys.publicKey;
-                    privateKey = es256kKeys.privateKey;
                     break;
                 default:
                     throw new Error(`Unsupported key type: ${keyType}`);
