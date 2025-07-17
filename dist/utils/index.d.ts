@@ -98,4 +98,207 @@ export declare function parseCredentialFromJSON(json: string): VerifiableCredent
  * Parse JSON string to presentation with validation
  */
 export declare function parsePresentationFromJSON(json: string): VerifiablePresentation;
+/**
+ * Advanced date/time utilities
+ */
+/**
+ * Add time duration to a date
+ */
+export declare function addDuration(dateTime: DateTime, duration: {
+    years?: number;
+    months?: number;
+    days?: number;
+    hours?: number;
+    minutes?: number;
+}): DateTime;
+/**
+ * Check if a date is expired
+ */
+export declare function isExpired(expirationDate: DateTime): boolean;
+/**
+ * Check if a date is in the future (not yet valid)
+ */
+export declare function isFuture(validFromDate: DateTime): boolean;
+/**
+ * Get time until expiration in milliseconds
+ */
+export declare function getTimeUntilExpiration(expirationDate: DateTime): number;
+/**
+ * Format duration in human readable format
+ */
+export declare function formatDuration(milliseconds: number): string;
+/**
+ * Advanced URI utilities
+ */
+/**
+ * Generate a DID-style URI
+ */
+export declare function generateDID(method?: string, identifier?: string): URI;
+/**
+ * Parse DID components
+ */
+export declare function parseDID(did: string): {
+    method: string;
+    identifier: string;
+    path?: string;
+    query?: string;
+    fragment?: string;
+} | null;
+/**
+ * Generate a credential ID with prefix
+ */
+export declare function generateCredentialID(issuerDomain: string): URI;
+/**
+ * Generate a presentation ID
+ */
+export declare function generatePresentationID(holderDomain?: string): URI;
+/**
+ * Advanced filtering utilities
+ */
+/**
+ * Filter credentials by multiple types (OR logic)
+ */
+export declare function filterCredentialsByTypes(credentials: VerifiableCredential[], types: string[]): VerifiableCredential[];
+/**
+ * Filter credentials by multiple issuers
+ */
+export declare function filterCredentialsByIssuers(credentials: VerifiableCredential[], issuerURIs: URI[]): VerifiableCredential[];
+/**
+ * Filter credentials by subject ID
+ */
+export declare function filterCredentialsBySubject(credentials: VerifiableCredential[], subjectID: URI): VerifiableCredential[];
+/**
+ * Filter credentials by validity period
+ */
+export declare function filterCredentialsByValidity(credentials: VerifiableCredential[], options?: {
+    validAt?: DateTime;
+    includeExpired?: boolean;
+    includeFuture?: boolean;
+}): VerifiableCredential[];
+/**
+ * Advanced data transformation utilities
+ */
+/**
+ * Convert credential to compact JSON (no formatting)
+ */
+export declare function credentialToCompactJSON(credential: VerifiableCredential): string;
+/**
+ * Convert multiple credentials to JSON array
+ */
+export declare function credentialsToJSON(credentials: VerifiableCredential[], indent?: number): string;
+/**
+ * Extract credential metadata
+ */
+export declare function extractCredentialMetadata(credential: VerifiableCredential): {
+    id?: string;
+    types: string[];
+    issuer: string;
+    issuanceDate?: string;
+    expirationDate?: string;
+    subjects: (string | undefined)[];
+    isValid: boolean;
+};
+/**
+ * Extract presentation metadata
+ */
+export declare function extractPresentationMetadata(presentation: VerifiablePresentation): {
+    id?: string;
+    types: string[];
+    holder?: string;
+    credentialCount: number;
+    credentialTypes: string[];
+};
+/**
+ * Credential sorting utilities
+ */
+/**
+ * Sort credentials by issuance date
+ */
+export declare function sortCredentialsByIssuanceDate(credentials: VerifiableCredential[], ascending?: boolean): VerifiableCredential[];
+/**
+ * Sort credentials by expiration date
+ */
+export declare function sortCredentialsByExpirationDate(credentials: VerifiableCredential[], ascending?: boolean): VerifiableCredential[];
+/**
+ * Group credentials by type
+ */
+export declare function groupCredentialsByType(credentials: VerifiableCredential[]): Map<string, VerifiableCredential[]>;
+/**
+ * Group credentials by issuer
+ */
+export declare function groupCredentialsByIssuer(credentials: VerifiableCredential[]): Map<string, VerifiableCredential[]>;
+/**
+ * Validation and verification utilities
+ */
+/**
+ * Basic structural validation for credentials
+ */
+export declare function validateCredentialStructure(credential: any): {
+    valid: boolean;
+    errors: string[];
+};
+/**
+ * Basic structural validation for presentations
+ */
+export declare function validatePresentationStructure(presentation: any): {
+    valid: boolean;
+    errors: string[];
+};
+/**
+ * Check if credential contains required fields for a specific type
+ */
+export declare function validateCredentialForType(credential: VerifiableCredential, requiredFields: string[]): {
+    valid: boolean;
+    missingFields: string[];
+};
+/**
+ * Statistics and analysis utilities
+ */
+/**
+ * Get credential statistics
+ */
+export declare function getCredentialStatistics(credentials: VerifiableCredential[]): {
+    total: number;
+    valid: number;
+    expired: number;
+    notYetValid: number;
+    byType: Map<string, number>;
+    byIssuer: Map<string, number>;
+};
+/**
+ * Find duplicate credentials
+ */
+export declare function findDuplicateCredentials(credentials: VerifiableCredential[]): VerifiableCredential[][];
+/**
+ * Security and privacy utilities
+ */
+/**
+ * Redact sensitive information from credential for logging
+ */
+export declare function redactCredentialForLogging(credential: VerifiableCredential): any;
+/**
+ * Generate credential fingerprint for deduplication
+ */
+export declare function generateCredentialFingerprint(credential: VerifiableCredential): string;
+/**
+ * Utility for working with credential contexts
+ */
+/**
+ * Validate required contexts are present
+ */
+export declare function validateRequiredContexts(credential: VerifiableCredential, requiredContexts: string[]): {
+    valid: boolean;
+    missingContexts: string[];
+};
+/**
+ * Export utilities for external systems
+ */
+/**
+ * Convert credentials to CSV format (basic metadata)
+ */
+export declare function credentialsToCSV(credentials: VerifiableCredential[]): string;
+/**
+ * Create a summary report of credentials
+ */
+export declare function generateCredentialSummaryReport(credentials: VerifiableCredential[]): string;
 //# sourceMappingURL=index.d.ts.map
