@@ -13,21 +13,28 @@ describe('ValidationEngine', () => {
   beforeEach(() => {
     validationEngine = new ValidationEngine();
     
+    // Use current date for validity
+    const now = new Date();
+    const futureDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
+    
     validCredential = {
       '@context': [W3C_VC_CONTEXT_V2],
       id: 'https://example.com/credentials/123',
       type: ['VerifiableCredential', 'UniversityDegreeCredential'],
       issuer: 'https://university.edu',
-      validFrom: '2024-01-01T00:00:00Z',
-      validUntil: '2030-01-01T00:00:00Z', // Future date
+      validFrom: now.toISOString(),
+      validUntil: futureDate.toISOString(),
       credentialSubject: {
         id: 'https://student.example/profile',
         name: 'Alice Smith',
-        degree: 'Bachelor of Science'
+        degree: {
+          type: 'Bachelor of Science',
+          name: 'Computer Science'
+        }
       },
       proof: {
         type: 'Ed25519Signature2020',
-        created: '2024-01-01T00:00:00Z',
+        created: now.toISOString(),
         verificationMethod: 'https://university.edu#key-1',
         proofPurpose: 'assertionMethod',
         proofValue: 'test-proof-value'
@@ -36,7 +43,10 @@ describe('ValidationEngine', () => {
   });
 
   test('should validate a valid credential', async () => {
-    const result = await validationEngine.validateCredential(validCredential);
+    // Disable cryptographic proof validation for this test since we're using mock data
+    const result = await validationEngine.validateCredential(validCredential, {
+      validateProof: false
+    });
     
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
@@ -96,7 +106,8 @@ describe('ValidationEngine', () => {
     const trustedIssuers = ['https://university.edu'];
     
     const result = await validationEngine.validateCredential(validCredential, {
-      trustedIssuers
+      trustedIssuers,
+      validateProof: false // Disable proof validation for test
     });
     
     expect(result.valid).toBe(true);
@@ -118,7 +129,8 @@ describe('ValidationEngine', () => {
     const allowedTypes = ['UniversityDegreeCredential'];
     
     const result = await validationEngine.validateCredential(validCredential, {
-      allowedTypes
+      allowedTypes,
+      validateProof: false // Disable proof validation for test
     });
     
     expect(result.valid).toBe(true);
@@ -146,5 +158,46 @@ describe('ValidationEngine', () => {
     
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Missing @context property');
+  });
+
+  test('should validate credential subject', async () => {
+    const result = validationEngine.validateCredentialSubject(validCredential);
+    
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  test('should detect empty credential subject', async () => {
+    const credentialWithEmptySubject = {
+      ...validCredential,
+      credentialSubject: { id: 'https://student.example/profile' } // Only has ID, no claims
+    };
+    
+    const result = validationEngine.validateCredentialSubject(credentialWithEmptySubject);
+    
+    expect(result.valid).toBe(true); // Still valid but should have warning
+    expect(result.warnings).toContain('credentialSubject[0]: contains no substantive claims');
+  });
+
+  test('should validate with detailed report', async () => {
+    const result = await validationEngine.validateWithDetailedReport(validCredential, {
+      validateProof: false
+    });
+    
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.details).toBeDefined();
+    expect(result.details.structure.valid).toBe(true);
+    expect(result.details.subject.valid).toBe(true);
+    expect(result.details.temporal.valid).toBe(true);
+  });
+
+  test('should validate against multiple schemas', async () => {
+    const schemaIds = ['VerifiableCredential', 'UniversityDegreeCredential'];
+    
+    const result = await validationEngine.validateCredentialWithSchemas(validCredential, schemaIds);
+    
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
   });
 });

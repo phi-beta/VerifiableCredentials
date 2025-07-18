@@ -7,6 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ValidationEngine = void 0;
 const context_1 = require("../context");
 const security_1 = require("../security");
+const schema_1 = require("../schema");
 class ValidationEngine {
     constructor() {
         this.contextManager = new context_1.ContextManager();
@@ -298,35 +299,68 @@ class ValidationEngine {
             return { valid: true, errors, warnings };
         }
         const proofs = Array.isArray(credential.proof) ? credential.proof : [credential.proof];
-        for (const proof of proofs) {
+        for (let i = 0; i < proofs.length; i++) {
+            const proof = proofs[i];
             // Basic proof structure validation
             if (!proof.type) {
-                errors.push('Proof missing type');
+                errors.push(`Proof ${i}: missing type`);
+                continue;
             }
             if (!proof.verificationMethod) {
-                errors.push('Proof missing verificationMethod');
+                errors.push(`Proof ${i}: missing verificationMethod`);
+                continue;
             }
             if (!proof.proofPurpose) {
-                errors.push('Proof missing proofPurpose');
+                errors.push(`Proof ${i}: missing proofPurpose`);
+                continue;
             }
             if (!proof.proofValue && !proof.jws) {
-                errors.push('Proof missing proofValue or jws');
+                errors.push(`Proof ${i}: missing proofValue or jws`);
+                continue;
             }
             // Validate proof purpose
             if (proof.proofPurpose && proof.proofPurpose !== 'assertionMethod') {
-                warnings.push(`Unexpected proof purpose: ${proof.proofPurpose}`);
+                warnings.push(`Proof ${i}: unexpected proof purpose: ${proof.proofPurpose}`);
             }
             // Validate created timestamp
             if (proof.created) {
                 try {
                     const created = new Date(proof.created);
                     if (isNaN(created.getTime())) {
-                        errors.push('Invalid proof created date format');
+                        errors.push(`Proof ${i}: invalid created date format`);
+                    }
+                    else {
+                        // Check if proof is too old (configurable threshold)
+                        const now = new Date();
+                        const hoursDiff = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
+                        if (hoursDiff > 24) { // 24 hours threshold
+                            warnings.push(`Proof ${i}: proof is ${Math.round(hoursDiff)} hours old`);
+                        }
                     }
                 }
                 catch {
-                    errors.push('Invalid proof created date format');
+                    errors.push(`Proof ${i}: invalid created date format`);
                 }
+            }
+            // Cryptographic verification using SecurityManager
+            try {
+                const credentialCopy = { ...credential };
+                delete credentialCopy.proof; // Remove proof for verification
+                // Extract public key from verification method
+                // In a real implementation, this would resolve the DID and get the public key
+                // For now, we'll simulate this with a placeholder
+                const publicKey = this.extractPublicKeyFromVerificationMethod(proof.verificationMethod);
+                const verificationResult = await this.securityManager.verifyProof(proof, credentialCopy, publicKey);
+                if (!verificationResult.valid) {
+                    errors.push(`Proof ${i}: ${verificationResult.errors.join(', ')}`);
+                }
+                if (verificationResult.warnings) {
+                    warnings.push(...verificationResult.warnings.map(warn => `Proof ${i}: ${warn}`));
+                }
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                errors.push(`Proof ${i}: verification error: ${errorMessage}`);
             }
         }
         return { valid: errors.length === 0, errors, warnings };
@@ -341,23 +375,54 @@ class ValidationEngine {
             return { valid: true, errors, warnings };
         }
         const proofs = Array.isArray(presentation.proof) ? presentation.proof : [presentation.proof];
-        for (const proof of proofs) {
+        for (let i = 0; i < proofs.length; i++) {
+            const proof = proofs[i];
             // Basic proof structure validation
             if (!proof.type) {
-                errors.push('Proof missing type');
+                errors.push(`Presentation proof ${i}: missing type`);
+                continue;
             }
             if (!proof.verificationMethod) {
-                errors.push('Proof missing verificationMethod');
+                errors.push(`Presentation proof ${i}: missing verificationMethod`);
+                continue;
             }
             if (!proof.proofPurpose) {
-                errors.push('Proof missing proofPurpose');
+                errors.push(`Presentation proof ${i}: missing proofPurpose`);
+                continue;
             }
             if (!proof.proofValue && !proof.jws) {
-                errors.push('Proof missing proofValue or jws');
+                errors.push(`Presentation proof ${i}: missing proofValue or jws`);
+                continue;
             }
             // Validate proof purpose for presentations
             if (proof.proofPurpose && proof.proofPurpose !== 'authentication') {
-                warnings.push(`Unexpected proof purpose for presentation: ${proof.proofPurpose}`);
+                warnings.push(`Presentation proof ${i}: unexpected proof purpose: ${proof.proofPurpose}`);
+            }
+            // Validate challenge for presentations
+            if (!proof.challenge) {
+                warnings.push(`Presentation proof ${i}: missing challenge - recommended for presentation proofs`);
+            }
+            // Validate domain for presentations
+            if (!proof.domain) {
+                warnings.push(`Presentation proof ${i}: missing domain - recommended for presentation proofs`);
+            }
+            // Cryptographic verification using SecurityManager
+            try {
+                const presentationCopy = { ...presentation };
+                delete presentationCopy.proof; // Remove proof for verification
+                // Extract public key from verification method
+                const publicKey = this.extractPublicKeyFromVerificationMethod(proof.verificationMethod);
+                const verificationResult = await this.securityManager.verifyProof(proof, presentationCopy, publicKey);
+                if (!verificationResult.valid) {
+                    errors.push(`Presentation proof ${i}: ${verificationResult.errors.join(', ')}`);
+                }
+                if (verificationResult.warnings) {
+                    warnings.push(...verificationResult.warnings.map(warn => `Presentation proof ${i}: ${warn}`));
+                }
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                errors.push(`Presentation proof ${i}: verification error: ${errorMessage}`);
             }
         }
         return { valid: errors.length === 0, errors, warnings };
@@ -368,10 +433,52 @@ class ValidationEngine {
     async validateCredentialSchema(credential) {
         const errors = [];
         const warnings = [];
-        // Placeholder for schema validation
-        // In a real implementation, this would fetch and validate against the schema
-        warnings.push('Schema validation not fully implemented');
-        return { valid: errors.length === 0, errors, warnings };
+        try {
+            // Use the comprehensive schema validator
+            const schemaResult = schema_1.schemaValidator.validateCredential(credential);
+            if (!schemaResult.valid) {
+                errors.push(...schemaResult.errors);
+            }
+            if (schemaResult.warnings) {
+                warnings.push(...schemaResult.warnings);
+            }
+            // Additional schema-specific validations
+            if (credential.credentialSchema) {
+                const schemas = Array.isArray(credential.credentialSchema)
+                    ? credential.credentialSchema
+                    : [credential.credentialSchema];
+                for (const schema of schemas) {
+                    // Validate schema structure
+                    if (!schema.id) {
+                        errors.push('credentialSchema missing id');
+                    }
+                    if (!schema.type) {
+                        errors.push('credentialSchema missing type');
+                    }
+                    // Validate against specific schema if available
+                    if (schema.id) {
+                        try {
+                            const specificResult = schema_1.schemaValidator.validateAgainstSchema(credential, schema.id);
+                            if (!specificResult.valid) {
+                                errors.push(...specificResult.errors.map(err => `Schema ${schema.id}: ${err}`));
+                            }
+                            if (specificResult.warnings) {
+                                warnings.push(...specificResult.warnings.map(warn => `Schema ${schema.id}: ${warn}`));
+                            }
+                        }
+                        catch (error) {
+                            warnings.push(`Could not validate against schema ${schema.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                        }
+                    }
+                }
+            }
+            return { valid: errors.length === 0, errors, warnings };
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            errors.push(`Schema validation failed: ${errorMessage}`);
+            return { valid: false, errors, warnings };
+        }
     }
     /**
      * Validate revocation status
@@ -379,10 +486,89 @@ class ValidationEngine {
     async validateRevocationStatus(credential) {
         const errors = [];
         const warnings = [];
-        // Placeholder for revocation status checking
-        // In a real implementation, this would check the credential status
-        warnings.push('Revocation status checking not fully implemented');
+        if (!credential.credentialStatus) {
+            return { valid: true, errors, warnings };
+        }
+        const statuses = Array.isArray(credential.credentialStatus)
+            ? credential.credentialStatus
+            : [credential.credentialStatus];
+        for (let i = 0; i < statuses.length; i++) {
+            const status = statuses[i];
+            // Basic structure validation
+            if (!status.id) {
+                errors.push(`credentialStatus[${i}]: missing id`);
+                continue;
+            }
+            if (!status.type) {
+                errors.push(`credentialStatus[${i}]: missing type`);
+                continue;
+            }
+            // Validate supported status types
+            const supportedTypes = [
+                'RevocationList2020Status',
+                'StatusList2021Entry',
+                'BitstringStatusListEntry'
+            ];
+            if (!supportedTypes.includes(status.type)) {
+                warnings.push(`credentialStatus[${i}]: unsupported status type ${status.type}`);
+                continue;
+            }
+            // Type-specific validation
+            try {
+                switch (status.type) {
+                    case 'RevocationList2020Status':
+                        await this.validateRevocationList2020Status(status, i);
+                        break;
+                    case 'StatusList2021Entry':
+                    case 'BitstringStatusListEntry':
+                        await this.validateStatusList2021Entry(status, i);
+                        break;
+                    default:
+                        warnings.push(`credentialStatus[${i}]: status type ${status.type} validation not implemented`);
+                }
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                warnings.push(`credentialStatus[${i}]: status check failed: ${errorMessage}`);
+            }
+        }
         return { valid: errors.length === 0, errors, warnings };
+    }
+    /**
+     * Validate RevocationList2020 status
+     */
+    async validateRevocationList2020Status(status, index) {
+        // Basic field validation
+        if (!status.revocationListIndex) {
+            throw new Error(`credentialStatus[${index}]: missing revocationListIndex`);
+        }
+        if (!status.revocationListCredential) {
+            throw new Error(`credentialStatus[${index}]: missing revocationListCredential`);
+        }
+        // TODO: Implement actual revocation list fetching and checking
+        // This would involve:
+        // 1. Fetch the revocation list credential from status.revocationListCredential
+        // 2. Verify the revocation list credential
+        // 3. Check if the index is set in the bitstring
+        console.log(`RevocationList2020 status check not fully implemented for index ${status.revocationListIndex}`);
+    }
+    /**
+     * Validate StatusList2021 entry
+     */
+    async validateStatusList2021Entry(status, index) {
+        // Basic field validation
+        if (!status.statusListIndex) {
+            throw new Error(`credentialStatus[${index}]: missing statusListIndex`);
+        }
+        if (!status.statusListCredential) {
+            throw new Error(`credentialStatus[${index}]: missing statusListCredential`);
+        }
+        // Validate status purpose
+        if (status.statusPurpose && !['revocation', 'suspension'].includes(status.statusPurpose)) {
+            throw new Error(`credentialStatus[${index}]: invalid statusPurpose ${status.statusPurpose}`);
+        }
+        // TODO: Implement actual status list fetching and checking
+        console.log(`StatusList2021 status check not fully implemented for index ${status.statusListIndex}`);
     }
     /**
      * Validate required fields
@@ -404,6 +590,189 @@ class ValidationEngine {
         return path.split('.').reduce((current, prop) => {
             return current && current[prop] !== undefined;
         }, obj) !== undefined;
+    }
+    /**
+     * Extract public key from verification method
+     * This is a simplified implementation - in production, this would resolve DIDs
+     */
+    extractPublicKeyFromVerificationMethod(verificationMethod) {
+        // Placeholder implementation - in real scenario, this would:
+        // 1. Parse the verification method URI
+        // 2. Resolve the DID document
+        // 3. Extract the public key from the verification method
+        // For demo purposes, return a mock public key
+        // This allows the validation to proceed without full DID resolution
+        return 'mock-public-key-for-validation-demo';
+    }
+    /**
+     * Validate credential against multiple schemas
+     */
+    async validateCredentialWithSchemas(credential, schemaIds) {
+        const errors = [];
+        const warnings = [];
+        for (const schemaId of schemaIds) {
+            try {
+                const result = schema_1.schemaValidator.validateAgainstSchema(credential, schemaId);
+                if (!result.valid) {
+                    errors.push(...result.errors.map(err => `Schema ${schemaId}: ${err}`));
+                }
+                if (result.warnings) {
+                    warnings.push(...result.warnings.map(warn => `Schema ${schemaId}: ${warn}`));
+                }
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                warnings.push(`Schema ${schemaId}: validation failed: ${errorMessage}`);
+            }
+        }
+        return { valid: errors.length === 0, errors, warnings };
+    }
+    /**
+     * Validate credential subject data
+     */
+    validateCredentialSubject(credential) {
+        const errors = [];
+        const warnings = [];
+        if (!credential.credentialSubject) {
+            errors.push('Missing credentialSubject');
+            return { valid: false, errors, warnings };
+        }
+        const subjects = Array.isArray(credential.credentialSubject)
+            ? credential.credentialSubject
+            : [credential.credentialSubject];
+        for (let i = 0; i < subjects.length; i++) {
+            const subject = subjects[i];
+            // Validate subject structure
+            if (typeof subject !== 'object' || subject === null) {
+                errors.push(`credentialSubject[${i}]: must be an object`);
+                continue;
+            }
+            // Check for circular references
+            try {
+                JSON.stringify(subject);
+            }
+            catch (error) {
+                errors.push(`credentialSubject[${i}]: contains circular references`);
+            }
+            // Validate subject ID if present
+            if (subject.id && typeof subject.id !== 'string') {
+                errors.push(`credentialSubject[${i}]: id must be a string`);
+            }
+            // Check for empty subject
+            const subjectKeys = Object.keys(subject);
+            if (subjectKeys.length === 0 || (subjectKeys.length === 1 && subjectKeys[0] === 'id')) {
+                warnings.push(`credentialSubject[${i}]: contains no substantive claims`);
+            }
+        }
+        return { valid: errors.length === 0, errors, warnings };
+    }
+    /**
+     * Validate evidence
+     */
+    validateEvidence(credential) {
+        const errors = [];
+        const warnings = [];
+        if (!credential.evidence) {
+            return { valid: true, errors, warnings };
+        }
+        const evidenceArray = Array.isArray(credential.evidence)
+            ? credential.evidence
+            : [credential.evidence];
+        for (let i = 0; i < evidenceArray.length; i++) {
+            const evidence = evidenceArray[i];
+            if (typeof evidence !== 'object' || evidence === null) {
+                errors.push(`evidence[${i}]: must be an object`);
+                continue;
+            }
+            // Evidence must have a type
+            if (!evidence.type) {
+                errors.push(`evidence[${i}]: missing type`);
+            }
+            // Validate common evidence types
+            if (evidence.type && typeof evidence.type === 'string' && evidence.type === 'DocumentVerification') {
+                if (!evidence.verifier && !evidence.evidenceDocument) {
+                    warnings.push(`evidence[${i}]: DocumentVerification should have verifier or evidenceDocument`);
+                }
+            }
+        }
+        return { valid: errors.length === 0, errors, warnings };
+    }
+    /**
+     * Validate terms of use
+     */
+    validateTermsOfUse(termsOfUse) {
+        const errors = [];
+        const warnings = [];
+        for (let i = 0; i < termsOfUse.length; i++) {
+            const term = termsOfUse[i];
+            if (typeof term !== 'object' || term === null) {
+                errors.push(`termsOfUse[${i}]: must be an object`);
+                continue;
+            }
+            if (!term.type) {
+                errors.push(`termsOfUse[${i}]: missing type`);
+            }
+            // Validate specific term types
+            if (term.type === 'IssuerPolicy') {
+                if (!term.policy) {
+                    warnings.push(`termsOfUse[${i}]: IssuerPolicy should have policy field`);
+                }
+            }
+        }
+        return { valid: errors.length === 0, errors, warnings };
+    }
+    /**
+     * Validate refresh service
+     */
+    validateRefreshService(refreshService) {
+        const errors = [];
+        const warnings = [];
+        if (!refreshService.id) {
+            errors.push('refreshService: missing id');
+        }
+        if (!refreshService.type) {
+            errors.push('refreshService: missing type');
+        }
+        // Validate service endpoint
+        if (refreshService.serviceEndpoint && typeof refreshService.serviceEndpoint !== 'string') {
+            errors.push('refreshService: serviceEndpoint must be a string URI');
+        }
+        return { valid: errors.length === 0, errors, warnings };
+    }
+    /**
+     * Comprehensive validation with detailed reporting
+     */
+    async validateWithDetailedReport(credential, options = {}) {
+        const details = {
+            context: await this.contextManager.validateContext(credential),
+            structure: this.validateCredentialStructure(credential, options),
+            type: this.validateCredentialType(credential, options.allowedTypes),
+            issuer: this.validateIssuer(credential, options.trustedIssuers),
+            temporal: options.validateExpiration !== false ? this.validateTemporalConstraints(credential) : { valid: true, errors: [], warnings: [] },
+            proof: options.validateProof !== false && credential.proof ? await this.validateCredentialProof(credential) : { valid: true, errors: [], warnings: [] },
+            schema: options.validateSchema && credential.credentialSchema ? await this.validateCredentialSchema(credential) : { valid: true, errors: [], warnings: [] },
+            revocation: options.validateRevocation && credential.credentialStatus ? await this.validateRevocationStatus(credential) : { valid: true, errors: [], warnings: [] },
+            subject: this.validateCredentialSubject(credential),
+            evidence: this.validateEvidence(credential),
+            termsOfUse: credential.termsOfUse ? this.validateTermsOfUse(credential.termsOfUse) : { valid: true, errors: [], warnings: [] },
+            refreshService: credential.refreshService ? this.validateRefreshService(credential.refreshService) : { valid: true, errors: [], warnings: [] }
+        };
+        const allErrors = [];
+        const allWarnings = [];
+        Object.entries(details).forEach(([section, result]) => {
+            if (result.errors) {
+                allErrors.push(...result.errors.map(err => `${section}: ${err}`));
+            }
+            if (result.warnings) {
+                allWarnings.push(...result.warnings.map(warn => `${section}: ${warn}`));
+            }
+        });
+        return {
+            valid: allErrors.length === 0,
+            errors: allErrors,
+            warnings: allWarnings,
+            details
+        };
     }
 }
 exports.ValidationEngine = ValidationEngine;

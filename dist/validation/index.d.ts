@@ -61,6 +61,14 @@ export declare class ValidationEngine {
      */
     private validateRevocationStatus;
     /**
+     * Validate RevocationList2020 status
+     */
+    private validateRevocationList2020Status;
+    /**
+     * Validate StatusList2021 entry
+     */
+    private validateStatusList2021Entry;
+    /**
      * Validate required fields
      */
     private validateRequiredFields;
@@ -68,5 +76,52 @@ export declare class ValidationEngine {
      * Check if object has nested property
      */
     private hasNestedProperty;
+    /**
+     * Extract public key from verification method
+     * This is a simplified implementation - in production, this would resolve DIDs
+     */
+    private extractPublicKeyFromVerificationMethod;
+    /**
+     * Validate credential against multiple schemas
+     */
+    validateCredentialWithSchemas(credential: VerifiableCredential, schemaIds: string[]): Promise<ValidationResult>;
+    /**
+     * Validate credential subject data
+     */
+    validateCredentialSubject(credential: VerifiableCredential): ValidationResult;
+    /**
+     * Validate evidence
+     */
+    validateEvidence(credential: VerifiableCredential): ValidationResult;
+    /**
+     * Validate terms of use
+     */
+    validateTermsOfUse(termsOfUse: any[]): ValidationResult;
+    /**
+     * Validate refresh service
+     */
+    validateRefreshService(refreshService: any): ValidationResult;
+    /**
+     * Comprehensive validation with detailed reporting
+     */
+    validateWithDetailedReport(credential: VerifiableCredential, options?: ValidationOptions): Promise<{
+        valid: boolean;
+        errors: string[];
+        warnings: string[];
+        details: {
+            context: ValidationResult;
+            structure: ValidationResult;
+            type: ValidationResult;
+            issuer: ValidationResult;
+            temporal: ValidationResult;
+            proof: ValidationResult;
+            schema: ValidationResult;
+            revocation: ValidationResult;
+            subject: ValidationResult;
+            evidence: ValidationResult;
+            termsOfUse: ValidationResult;
+            refreshService: ValidationResult;
+        };
+    }>;
 }
 //# sourceMappingURL=index.d.ts.map
